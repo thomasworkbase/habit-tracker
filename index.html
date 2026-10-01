@@ -41,6 +41,36 @@
         </div>
     </main>
 
+    <!-- Detail / Stats Modal -->
+    <div id="detail-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="detail-title" class="text-lg font-bold flex items-center gap-2"></h2>
+                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+                <div class="bg-slate-900 border border-slate-750 p-4 rounded-xl grid grid-cols-2 gap-4 text-center">
+                    <div>
+                        <div class="text-xs text-slate-400">Aktueller Streak</div>
+                        <div id="detail-current-streak" class="text-xl font-bold text-emerald-400 mt-1">0 Tage</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400">Rekord-Streak</div>
+                        <div id="detail-best-streak" class="text-xl font-bold text-indigo-400 mt-1">0 Tage</div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Vergangene Streaks (Historie)</h3>
+                    <div id="detail-history-list" class="space-y-2"></div>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-700 flex justify-between">
+                <button onclick="deleteCurrentDetailHabit()" class="text-rose-400 hover:text-rose-300 text-sm font-medium transition"><i class="fa-solid fa-trash mr-1"></i> Löschen</button>
+                <button onclick="closeDetailModal()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">Schließen</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Add Habit Modal -->
     <div id="add-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
@@ -64,6 +94,18 @@
                     </div>
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Wochentage</label>
+                    <div class="grid grid-cols-7 gap-1 text-center" id="weekday-selector">
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="1" checked class="hidden peer"><span>Mo</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="2" checked class="hidden peer"><span>Di</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="3" checked class="hidden peer"><span>Mi</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="4" checked class="hidden peer"><span>Do</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="5" checked class="hidden peer"><span>Fr</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="6" checked class="hidden peer"><span>Sa</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="0" checked class="hidden peer"><span>So</span></label>
+                    </div>
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Startdatum (für vergangenen Streak)</label>
                     <input type="date" id="habit-start-date" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
@@ -75,18 +117,34 @@
         </div>
     </div>
 
-    <!-- JavaScript Logik (inkl. Startdatum-Init wie in Swift) -->
     <script>
         let habits = JSON.parse(localStorage.getItem("SavedHabitsData")) || [
-            { id: "1", title: "Täglich lesen", type: "goal", emoji: "📚", completedDates: [] },
-            { id: "2", title: "Kein Social Media", type: "restriction", emoji: "🚫", completedDates: [] }
+            { id: "1", title: "Täglich lesen", type: "goal", emoji: "📚", frequencyDays: [1,2,3,4,5,6,0], completedDates: [] },
+            { id: "2", title: "Kein Social Media", type: "restriction", emoji: "🚫", frequencyDays: [1,2,3,4,5,6,0], completedDates: [] }
         ];
 
         let currentFilter = 'all';
+        let activeDetailId = null;
+
+        document.querySelectorAll('#weekday-selector input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const label = e.target.parentElement;
+                if (e.target.checked) {
+                    label.className = "bg-indigo-600 border-indigo-500 text-white rounded-lg p-1.5 text-xs cursor-pointer select-none font-semibold transition";
+                } else {
+                    label.className = "bg-slate-900 border border-slate-700 text-slate-400 rounded-lg p-1.5 text-xs cursor-pointer select-none transition";
+                }
+            });
+            const label = input.parentElement;
+            if (input.checked) {
+                label.className = "bg-indigo-600 border-indigo-500 text-white rounded-lg p-1.5 text-xs cursor-pointer select-none font-semibold transition";
+            }
+        });
 
         function save() {
             localStorage.setItem("SavedHabitsData", JSON.stringify(habits));
             render();
+            if (activeDetailId) openDetailModal(activeDetailId);
         }
 
         function setFilter(filter) {
@@ -103,10 +161,8 @@
         }
 
         function openAddModal() {
-            // Standardmäßig heutigen Tag im Datum-Picker vorbelegen
             const todayStr = new Date().toISOString().split('T')[0];
             document.getElementById('habit-start-date').value = todayStr;
-            
             document.getElementById('add-modal').classList.remove('hidden');
             document.getElementById('add-modal').classList.add('flex');
         }
@@ -124,45 +180,32 @@
             let emoji = document.getElementById('habit-emoji').value.trim();
             if (!emoji) emoji = type === 'goal' ? '🎯' : '🚫';
             
+            const frequencyDays = Array.from(document.querySelectorAll('#weekday-selector input:checked')).map(el => parseInt(el.value));
             const startDateInput = document.getElementById('habit-start-date').value;
-
             let completedDates = [];
 
-            // Exakte Swift Init-Logik nachgebaut:
-            // Wenn ein Startdatum gewählt wurde, fülle alle Tage von Startdatum bis gestern auf.
             if (startDateInput) {
-                const calendar = new Date();
-                calendar.setHours(0,0,0,0);
-                
                 let current = new Date(startDateInput);
                 current.setHours(0,0,0,0);
-                
                 let today = new Date();
                 today.setHours(0,0,0,0);
 
                 while (current <= today) {
-                    completedDates.push(new Date(current).toISOString());
+                    const dayOfWeek = current.getDay();
+                    if (frequencyDays.includes(dayOfWeek)) {
+                        completedDates.push(new Date(current).toISOString());
+                    }
                     current.setDate(current.getDate() + 1);
                 }
             }
 
-            const newHabit = {
-                id: Date.now().toString(),
-                title,
-                type,
-                emoji,
-                completedDates
-            };
-
-            habits.push(newHabit);
+            habits.push({ id: Date.now().toString(), title, type, emoji, frequencyDays, completedDates });
             save();
             closeAddModal();
         }
 
-        // Streak-Berechnung exakt nach deiner Swift-Logik
-        function calculateStreaks(completedDates) {
-            if (!completedDates || completedDates.length === 0) return { current: 0, best: 0 };
-
+        function getAllStreaks(completedDates) {
+            if (!completedDates || completedDates.length === 0) return [];
             const normalize = dateStr => new Date(dateStr).setHours(0,0,0,0);
             const sortedUniqueDates = [...new Set(completedDates.map(normalize))].sort((a, b) => a - b);
 
@@ -185,19 +228,47 @@
                 previousDate = currentDate;
             }
             streaks.push({ length: count, startDate: streakStart, endDate: previousDate });
+            return streaks;
+        }
 
+        function getActiveStreak(completedDates) {
+            const streaks = getAllStreaks(completedDates);
+            if (streaks.length === 0) return null;
+            const lastStreak = streaks[streaks.length - 1];
+            
             const today = new Date().setHours(0,0,0,0);
             const yesterday = today - (24 * 60 * 60 * 1000);
-            const lastStreak = streaks[streaks.length - 1];
 
-            let currentStreak = 0;
-            if (lastStreak && (lastStreak.endDate === today || lastStreak.endDate === yesterday)) {
-                currentStreak = lastStreak.length;
+            if (lastStreak.endDate === today || lastStreak.endDate === yesterday) {
+                return lastStreak;
             }
+            return null;
+        }
 
-            const bestStreak = Math.max(...streaks.map(s => s.length), 0);
+        function getPastStreaksHistory(completedDates) {
+            const streaks = getAllStreaks(completedDates);
+            if (streaks.length === 0) return [];
+            
+            const today = new Date().setHours(0,0,0,0);
+            const yesterday = today - (24 * 60 * 60 * 1000);
+            let history = [...streaks];
+            
+            const last = history[history.length - 1];
+            if (last && (last.endDate === today || last.endDate === yesterday)) {
+                history.pop();
+            }
+            return history.reverse();
+        }
 
-            return { current: currentStreak, best: bestStreak };
+        function formatDateDE(dateVal) {
+            const d = new Date(dateVal);
+            return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function isDueToday(frequencyDays) {
+            if (!frequencyDays || frequencyDays.length === 0) return true;
+            const todayDay = new Date().getDay();
+            return frequencyDays.includes(todayDay);
         }
 
         function isCompletedToday(completedDates) {
@@ -205,7 +276,8 @@
             return completedDates.some(d => new Date(d).setHours(0,0,0,0) === today);
         }
 
-        function toggleToday(id) {
+        function toggleToday(id, event) {
+            if (event) event.stopPropagation();
             const habit = habits.find(h => h.id === id);
             if (!habit) return;
 
@@ -220,8 +292,51 @@
             save();
         }
 
-        function deleteHabit(id) {
-            habits = habits.filter(h => h.id !== id);
+        function openDetailModal(id) {
+            activeDetailId = id;
+            const habit = habits.find(h => h.id === id);
+            if (!habit) return;
+
+            document.getElementById('detail-title').innerHTML = `<span>${habit.emoji}</span> ${habit.title}`;
+            
+            const active = getActiveStreak(habit.completedDates);
+            const all = getAllStreaks(habit.completedDates);
+            const currentLen = active ? active.length : 0;
+            const bestLen = all.length > 0 ? Math.max(...all.map(s => s.length)) : 0;
+
+            document.getElementById('detail-current-streak').innerText = `${currentLen} ${currentLen === 1 ? 'Tag' : 'Tage'}`;
+            document.getElementById('detail-best-streak').innerText = `${bestLen} ${bestLen === 1 ? 'Tag' : 'Tage'}`;
+
+            const historyList = document.getElementById('detail-history-list');
+            historyList.innerHTML = '';
+            
+            const history = getPastStreaksHistory(habit.completedDates);
+            if (history.length === 0) {
+                historyList.innerHTML = `<div class="text-xs text-slate-500 italic py-2">Noch keine vergangenen Streaks aufgezeichnet.</div>`;
+            } else {
+                history.forEach(s => {
+                    const item = document.createElement('div');
+                    item.className = "bg-slate-900 border border-slate-750 p-2.5 rounded-xl text-xs flex justify-between items-center";
+                    let dateStr = s.startDate === s.endDate ? formatDateDE(s.startDate) : `${formatDateDE(s.startDate)} – ${formatDateDE(s.endDate)}`;
+                    item.innerHTML = `<span>${dateStr}</span><strong class="text-indigo-400">${s.length} ${s.length === 1 ? 'Tag' : 'Tage'}</strong>`;
+                    historyList.appendChild(item);
+                });
+            }
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+            document.getElementById('detail-modal').classList.add('flex');
+        }
+
+        function closeDetailModal() {
+            activeDetailId = null;
+            document.getElementById('detail-modal').classList.remove('flex');
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+
+        function deleteCurrentDetailHabit() {
+            if (!activeDetailId) return;
+            habits = habits.filter(h => h.id !== activeDetailId);
+            closeDetailModal();
             save();
         }
 
@@ -229,9 +344,20 @@
             const listEl = document.getElementById('habits-list');
             listEl.innerHTML = '';
 
-            const filtered = habits.filter(h => {
+            let filtered = habits.filter(h => {
                 if (currentFilter === 'all') return true;
                 return h.type === currentFilter;
+            });
+
+            filtered.sort((a, b) => {
+                const aDue = isDueToday(a.frequencyDays);
+                const bDue = isDueToday(b.frequencyDays);
+                const aCompleted = isCompletedToday(a.completedDates);
+                const bCompleted = isCompletedToday(b.completedDates);
+
+                if (aDue !== bDue) return aDue ? -1 : 1;
+                if (aCompleted === bCompleted) return 0;
+                return aCompleted ? 1 : -1;
             });
 
             if (filtered.length === 0) {
@@ -240,37 +366,40 @@
             }
 
             filtered.forEach(habit => {
+                const dueToday = isDueToday(habit.frequencyDays);
                 const completed = isCompletedToday(habit.completedDates);
-                const streaks = calculateStreaks(habit.completedDates);
+                const active = getActiveStreak(habit.completedDates);
+                const all = getAllStreaks(habit.completedDates);
+                const currentStreak = active ? active.length : 0;
+                const bestStreak = all.length > 0 ? Math.max(...all.map(s => s.length)) : 0;
 
                 const card = document.createElement('div');
-                card.className = `bg-slate-800 border ${completed ? 'border-emerald-500/50 bg-slate-800/80' : 'border-slate-700'} rounded-2xl p-4 flex items-center justify-between transition shadow-lg`;
+                card.className = `bg-slate-800 border ${completed ? 'border-emerald-500/50 bg-slate-800/80 opacity-75' : dueToday ? 'border-slate-700' : 'border-slate-800 opacity-60'} rounded-2xl p-4 flex items-center justify-between transition-all duration-300 shadow-lg cursor-pointer hover:border-slate-500`;
+                card.onclick = () => openDetailModal(habit.id);
                 
                 card.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-2xl border border-slate-750">
+                    <div class="flex items-center gap-3 pointer-events-none pr-2 overflow-hidden">
+                        <div class="w-12 h-12 shrink-0 rounded-xl bg-slate-900 flex items-center justify-center text-2xl border border-slate-750">
                             ${habit.emoji}
                         </div>
-                        <div>
+                        <div class="min-w-0">
                             <div class="flex items-center gap-2">
-                                <h3 class="font-semibold text-white">${habit.title}</h3>
-                                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${habit.type === 'goal' ? 'bg-blue-500/20 text-blue-400' : 'bg-rose-500/20 text-rose-400'}">
+                                <h3 class="font-semibold text-white truncate ${completed ? 'line-through text-slate-400' : ''}">${habit.title}</h3>
+                                <span class="shrink-0 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${habit.type === 'goal' ? 'bg-blue-500/20 text-blue-400' : 'bg-rose-500/20 text-rose-400'}">
                                     ${habit.type === 'goal' ? 'Vorsatz' : 'Verbot'}
                                 </span>
                             </div>
-                            <div class="text-xs text-slate-400 mt-1 flex gap-3">
-                                <span>🔥 Streak: <strong class="text-white">${streaks.current}</strong></span>
-                                <span>🏆 Rekord: <strong class="text-white">${streaks.best}</strong></span>
+                            <div class="text-xs text-slate-400 mt-1 flex items-center gap-3 whitespace-nowrap">
+                                <span>🔥 Streak: <strong class="text-white">${currentStreak}</strong></span>
+                                <span>🏆 Rekord: <strong class="text-white">${bestStreak}</strong></span>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="toggleToday('${habit.id}')" class="w-10 h-10 rounded-xl flex items-center justify-center transition ${completed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-900 border border-slate-700 text-slate-500 hover:text-white'}">
-                            <i class="fa-solid fa-check text-sm"></i>
-                        </button>
-                        <button onclick="deleteHabit('${habit.id}')" class="text-slate-600 hover:text-rose-400 p-2 transition">
-                            <i class="fa-solid fa-trash text-xs"></i>
-                        </button>
+                    <div class="flex items-center shrink-0 pl-2">
+                        ${dueToday ? `
+                        <button type="button" onclick="toggleToday('${habit.id}', event)" class="w-10 h-10 rounded-xl flex items-center justify-center transition ${completed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/35' : 'bg-slate-900 border border-slate-700 text-slate-500 hover:text-white'}">
+                            <i class="fa-solid fa-check text-sm pointer-events-none"></i>
+                        </button>` : `<span class="text-xs font-medium text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg">Ruhetag</span>`}
                     </div>
                 `;
                 listEl.appendChild(card);
