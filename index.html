@@ -145,9 +145,6 @@
     <!-- Supabase CDN & App Logik -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // ==========================================
-        // TRAGE HIER DEINE SUPABASE DATEN EIN:
-        // ==========================================
         const SUPABASE_URL = 'https://hyydvqkfklkecgolohkg.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_frk0kxw_rqBVqX_qiBRaGw_kBnoZlMl';
 
@@ -164,7 +161,6 @@
         let currentFilter = 'all';
         let activeDetailId = null;
 
-        // Login-Handling
         window.handleLogin = async function(e) {
             e.preventDefault();
             const email = document.getElementById('login-email').value;
@@ -421,6 +417,7 @@
                 return h.type === currentFilter;
             });
 
+            // Sortierung: 1. Fällig heute, 2. Noch nicht erledigt, 3. Vorsätze ('goal') vor Verboten ('restriction')
             filtered.sort((a, b) => {
                 const aDue = isDueToday(a.frequencyDays);
                 const bDue = isDueToday(b.frequencyDays);
@@ -428,8 +425,14 @@
                 const bCompleted = isCompletedToday(b.completedDates);
 
                 if (aDue !== bDue) return aDue ? -1 : 1;
-                if (aCompleted === bCompleted) return 0;
-                return aCompleted ? 1 : -1;
+                if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+
+                if (!aCompleted && !bCompleted) {
+                    if (a.type === 'goal' && b.type !== 'goal') return -1;
+                    if (a.type !== 'goal' && b.type === 'goal') return 1;
+                }
+
+                return 0;
             });
 
             if (filtered.length === 0) {
@@ -493,14 +496,12 @@
             }
         });
 
-        // App Start & Auth Check
         async function initApp() {
             if (!supabaseClient) {
                 document.getElementById('sync-status').innerText = "⚠️ Kein Supabase";
                 return;
             }
 
-            // Prüfen, ob der User bereits eingeloggt ist
             const { data: { session } } = await supabaseClient.auth.getSession();
             
             if (!session) {
@@ -510,7 +511,7 @@
             }
 
             document.getElementById('login-overlay').classList.add('hidden');
-            document.getElementById('sync-status').innerText = "☁️ Gesichert";
+            document.getElementById('sync-status').innerText = "☁️️ Gesichert";
 
             try {
                 const { data, error } = await supabaseClient.from('habits').select('data');
