@@ -62,7 +62,7 @@
                 <div>
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Vergangene Streaks (Historie)</h3>
                     <div id="detail-history-list" class="space-y-2">
-                        <!-- Historie wird hier geladen -->
+                        <!-- Historie -->
                     </div>
                 </div>
             </div>
@@ -107,7 +107,7 @@
         </div>
     </div>
 
-    <!-- JavaScript Vollversion (inkl. Swift Streak-Algorithmen & Statistik-Historie) -->
+    <!-- JavaScript Logik mit automatischer Sortierung (Erledigte nach unten) -->
     <script>
         let habits = JSON.parse(localStorage.getItem("SavedHabitsData")) || [
             { id: "1", title: "Täglich lesen", type: "goal", emoji: "📚", completedDates: [] },
@@ -176,10 +176,8 @@
             closeAddModal();
         }
 
-        // Exakte Swift Streak & Historie Logik
         function getAllStreaks(completedDates) {
             if (!completedDates || completedDates.length === 0) return [];
-
             const normalize = dateStr => new Date(dateStr).setHours(0,0,0,0);
             const sortedUniqueDates = [...new Set(completedDates.map(normalize))].sort((a, b) => a - b);
 
@@ -312,9 +310,17 @@
             const listEl = document.getElementById('habits-list');
             listEl.innerHTML = '';
 
-            const filtered = habits.filter(h => {
+            let filtered = habits.filter(h => {
                 if (currentFilter === 'all') return true;
                 return h.type === currentFilter;
+            });
+
+            // Automatische Sortierung: Offene Habits nach oben, heute bereits erledigte nach unten rutschen lassen
+            filtered.sort((a, b) => {
+                const aCompleted = isCompletedToday(a.completedDates);
+                const bCompleted = isCompletedToday(b.completedDates);
+                if (aCompleted === bCompleted) return 0;
+                return aCompleted ? 1 : -1; // Wenn a erledigt ist (true), wandert es nach b (nach unten)
             });
 
             if (filtered.length === 0) {
@@ -330,7 +336,7 @@
                 const bestStreak = all.length > 0 ? Math.max(...all.map(s => s.length)) : 0;
 
                 const card = document.createElement('div');
-                card.className = `bg-slate-800 border ${completed ? 'border-emerald-500/50 bg-slate-800/80' : 'border-slate-700'} rounded-2xl p-4 flex items-center justify-between transition shadow-lg cursor-pointer hover:border-slate-500`;
+                card.className = `bg-slate-800 border ${completed ? 'border-emerald-500/50 bg-slate-800/80 opacity-75' : 'border-slate-700'} rounded-2xl p-4 flex items-center justify-between transition-all duration-300 shadow-lg cursor-pointer hover:border-slate-500`;
                 card.onclick = () => openDetailModal(habit.id);
                 
                 card.innerHTML = `
@@ -340,10 +346,10 @@
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <h3 class="font-semibold text-white">${habit.title}</h3>
+                                <h3 class="font-semibold text-white ${completed ? 'line-through text-slate-400' : ''}">${habit.title}</h3>
                                 <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${habit.type === 'goal' ? 'bg-blue-500/20 text-blue-400' : 'bg-rose-500/20 text-rose-400'}">
                                     ${habit.type === 'goal' ? 'Vorsatz' : 'Verbot'}
-                                }</span>
+                                </span>
                             </div>
                             <div class="text-xs text-slate-400 mt-1 flex gap-3">
                                 <span>🔥 Streak: <strong class="text-white">${currentStreak}</strong></span>
@@ -352,7 +358,7 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="toggleToday('${habit.id}', event)" class="w-10 h-10 rounded-xl flex items-center justify-center transition ${completed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-900 border border-slate-700 text-slate-500 hover:text-white'}">
+                        <button onclick="toggleToday('${habit.id}', event)" class="w-10 h-10 rounded-xl flex items-center justify-center transition ${completed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/35' : 'bg-slate-900 border border-slate-700 text-slate-500 hover:text-white'}">
                             <i class="fa-solid fa-check text-sm"></i>
                         </button>
                     </div>
@@ -360,6 +366,11 @@
                 listEl.appendChild(card);
             });
         }
+
+        render();
+    </script>
+</body>
+</html>
 
         render();
     </script>
