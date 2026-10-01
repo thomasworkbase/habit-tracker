@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Habit Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-10 flex justify-between items-center">
+        <h1 class="text-xl font-bold flex items-center gap-2">
+            <span>🎯</span> Habit Tracker
+        </h1>
+        <button onclick="openAddModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl font-medium text-sm transition">
+            <i class="fa-solid fa-plus mr-1"></i> Neu
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-md w-full mx-auto p-4 pb-24">
+        <!-- Filter Tabs -->
+        <div class="flex bg-slate-800 p-1 rounded-xl mb-6 border border-slate-700">
+            <button onclick="setFilter('all')" id="filter-all" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white transition">Alle</button>
+            <button onclick="setFilter('goal')" id="filter-goal" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 transition">Vorsätze</button>
+            <button onclick="setFilter('restriction')" id="filter-restriction" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 transition">Verbote</button>
+        </div>
+
+        <!-- Habits List -->
+        <div id="habits-list" class="space-y-4">
+            <!-- Wird per JavaScript gefüllt -->
+        </div>
+    </main>
+
+    <!-- Add Habit Modal -->
+    <div id="add-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+            <h2 class="text-lg font-bold mb-4">Neues Habit hinzufügen</h2>
+            <form id="habit-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Titel</label>
+                    <input type="text" id="habit-title" required placeholder="z.B. Joggen oder Kein Zucker" class="w-full bg-slate-900 border border-slate-750 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Typ</label>
+                        <select id="habit-type" class="w-full bg-slate-900 border border-slate-750 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                            <option value="goal">Vorsatz</option>
+                            <option value="restriction">Verbot</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Emoji</label>
+                        <input type="text" id="habit-emoji" placeholder="🎯 / 🚫" class="w-full bg-slate-900 border border-slate-750 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeAddModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl text-sm font-medium transition">Abbrechen</button>
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-xl text-sm font-medium transition">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Logik (angelehnt an Swift Habit & HabitStore) -->
+    <script>
+        let habits = JSON.parse(localStorage.getItem("SavedHabitsData")) || [
+            { id: "1", title: "Täglich lesen", type: "goal", emoji: "📚", completedDates: [] },
+            { id: "2", title: "Kein Social Media", type: "restriction", emoji: "🚫", completedDates: [] }
+        ];
+
+        let currentFilter = 'all';
+
+        function save() {
+            localStorage.setItem("SavedHabitsData", JSON.stringify(habits));
+            render();
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            ['all', 'goal', 'restriction'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (f === filter) {
+                    btn.className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white transition";
+                } else {
+                    btn.className = "flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 transition";
+                }
+            });
+            render();
+        }
+
+        function openAddModal() {
+            document.getElementById('add-modal').classList.remove('hidden');
+            document.getElementById('add-modal').classList.add('flex');
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-modal').classList.remove('flex');
+            document.getElementById('add-modal').classList.add('hidden');
+            document.getElementById('habit-form').reset();
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('habit-title').value;
+            const type = document.getElementById('habit-type').value;
+            let emoji = document.getElementById('habit-emoji').value.trim();
+            if (!emoji) emoji = type === 'goal' ? '🎯' : '🚫';
+
+            const newHabit = {
+                id: Date.now().toString(),
+                title,
+                type,
+                emoji,
+                completedDates: []
+            };
+
+            habits.push(newHabit);
+            save();
+            closeAddModal();
+        }
+
+        // Streak-Berechnung exakt nach deiner Swift-Logik
+        function calculateStreaks(completedDates) {
+            if (!completedDates || completedDates.length === 0) return { current: 0, best: 0, all: [] };
+
+            const normalize = dateStr => new Date(dateStr).setHours(0,0,0,0);
+            const sortedUniqueDates = [...new Set(completedDates.map(normalize))].sort((a, b) => a - b);
+
+            let streaks = [];
+            let streakStart = sortedUniqueDates[0];
+            let previousDate = sortedUniqueDates[0];
+            let count = 1;
+
+            for (let i = 1; i < sortedUniqueDates.length; i++) {
+                let currentDate = sortedUniqueDates[i];
+                let dayAfterPrevious = previousDate + (24 * 60 * 60 * 1000);
+
+                if (currentDate === dayAfterPrevious) {
+                    count += 1;
+                } else {
+                    streaks.push({ length: count, startDate: streakStart, endDate: previousDate });
+                    streakStart = currentDate;
+                    count = 1;
+                }
+                previousDate = currentDate;
+            }
+            streaks.push({ length: count, startDate: streakStart, endDate: previousDate });
+
+            // Active Streak Logik
+            const today = new Date().setHours(0,0,0,0);
+            const yesterday = today - (24 * 60 * 60 * 1000);
+            const lastStreak = streaks[streaks.length - 1];
+
+            let currentStreak = 0;
+            if (lastStreak && (lastStreak.endDate === today || lastStreak.endDate === yesterday)) {
+                currentStreak = lastStreak.length;
+            }
+
+            const bestStreak = Math.max(...streaks.map(s => s.length), 0);
+
+            return { current: currentStreak, best: bestStreak };
+        }
+
+        function isCompletedToday(completedDates) {
+            const today = new Date().setHours(0,0,0,0);
+            return completedDates.some(d => new Date(d).setHours(0,0,0,0) === today);
+        }
+
+        function toggleToday(id) {
+            const habit = habits.find(h => h.id === id);
+            if (!habit) return;
+
+            const today = new Date().setHours(0,0,0,0);
+            const index = habit.completedDates.findIndex(d => new Date(d).setHours(0,0,0,0) === today);
+
+            if (index > -1) {
+                habit.completedDates.splice(index, 1);
+            } else {
+                habit.completedDates.push(new Date().toISOString());
+            }
+            save();
+        }
+
+        function deleteHabit(id) {
+            habits = habits.filter(h => h.id !== id);
+            save();
+        }
+
+        function render() {
+            const listEl = document.getElementById('habits-list');
+            listEl.innerHTML = '';
+
+            const filtered = habits.filter(h => {
+                if (currentFilter === 'all') return true;
+                return h.type === currentFilter;
+            });
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<div class="text-center text-slate-500 py-10 text-sm">Keine Einträge gefunden.</div>`;
+                return;
+            }
+
+            filtered.forEach(habit => {
+                const completed = isCompletedToday(habit.completedDates);
+                const streaks = calculateStreaks(habit.completedDates);
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-800 border ${completed ? 'border-emerald-500/50 bg-slate-800/80' : 'border-slate-700'} rounded-2xl p-4 flex items-center justify-between transition shadow-lg`;
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-2xl border border-slate-750">
+                            ${habit.emoji}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-semibold text-white">${habit.title}</h3>
+                                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${habit.type === 'goal' ? 'bg-blue-500/20 text-blue-400' : 'bg-rose-500/20 text-rose-400'}">
+                                    ${habit.type === 'goal' ? 'Vorsatz' : 'Verbot'}
+                                </span>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-1 flex gap-3">
+                                <span>🔥 Streak: <strong class="text-white">${streaks.current}</strong></span>
+                                <span>🏆 Rekord: <strong class="text-white">${streaks.best}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleToday('${habit.id}')" class="w-10 h-10 rounded-xl flex items-center justify-center transition ${completed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-900 border border-slate-700 text-slate-500 hover:text-white'}">
+                            <i class="fa-solid fa-check text-sm"></i>
+                        </button>
+                        <button onclick="deleteHabit('${habit.id}')" class="text-slate-600 hover:text-rose-400 p-2 transition">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        render();
+    </script>
+</body>
+</html>
