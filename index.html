@@ -61,9 +61,7 @@
                 </div>
                 <div>
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Vergangene Streaks (Historie)</h3>
-                    <div id="detail-history-list" class="space-y-2">
-                        <!-- Historie -->
-                    </div>
+                    <div id="detail-history-list" class="space-y-2"></div>
                 </div>
             </div>
             <div class="mt-4 pt-3 border-t border-slate-700 flex justify-between">
@@ -107,7 +105,6 @@
         </div>
     </div>
 
-    <!-- JavaScript Logik mit automatischer Sortierung (Erledigte nach unten) -->
     <script>
         let habits = JSON.parse(localStorage.getItem("SavedHabitsData")) || [
             { id: "1", title: "Täglich lesen", type: "goal", emoji: "📚", completedDates: [] },
@@ -315,12 +312,11 @@
                 return h.type === currentFilter;
             });
 
-            // Automatische Sortierung: Offene Habits nach oben, heute bereits erledigte nach unten rutschen lassen
             filtered.sort((a, b) => {
                 const aCompleted = isCompletedToday(a.completedDates);
                 const bCompleted = isCompletedToday(b.completedDates);
                 if (aCompleted === bCompleted) return 0;
-                return aCompleted ? 1 : -1; // Wenn a erledigt ist (true), wandert es nach b (nach unten)
+                return aCompleted ? 1 : -1;
             });
 
             if (filtered.length === 0) {
@@ -340,7 +336,7 @@
                 card.onclick = () => openDetailModal(habit.id);
                 
                 card.innerHTML = `
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 pointer-events-none">
                         <div class="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-2xl border border-slate-750">
                             ${habit.emoji}
                         </div>
@@ -358,19 +354,14 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="toggleToday('${habit.id}', event)" class="w-10 h-10 rounded-xl flex items-center justify-center transition ${completed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/35' : 'bg-slate-900 border border-slate-700 text-slate-500 hover:text-white'}">
-                            <i class="fa-solid fa-check text-sm"></i>
+                        <button type="button" onclick="toggleToday('${habit.id}', event)" class="w-10 h-10 rounded-xl flex items-center justify-center transition ${completed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/35' : 'bg-slate-900 border border-slate-700 text-slate-500 hover:text-white'}">
+                            <i class="fa-solid fa-check text-sm pointer-events-none"></i>
                         </button>
                     </div>
                 `;
                 listEl.appendChild(card);
             });
         }
-
-        render();
-    </script>
-</body>
-</html>
 
         render();
     </script>
