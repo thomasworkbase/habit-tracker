@@ -94,6 +94,18 @@
                     </div>
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Wochentage</label>
+                    <div class="grid grid-cols-7 gap-1 text-center" id="weekday-selector">
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none hover:bg-slate-755"><input type="checkbox" value="1" checked class="hidden peer"><span>Mo</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="2" checked class="hidden peer"><span>Di</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="3" checked class="hidden peer"><span>Mi</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="4" checked class="hidden peer"><span>Do</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="5" checked class="hidden peer"><span>Fr</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="6" checked class="hidden peer"><span>Sa</span></label>
+                        <label class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-xs cursor-pointer select-none"><input type="checkbox" value="0" checked class="hidden peer"><span>So</span></label>
+                    </div>
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Startdatum (für vergangenen Streak)</label>
                     <input type="date" id="habit-start-date" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
@@ -107,12 +119,29 @@
 
     <script>
         let habits = JSON.parse(localStorage.getItem("SavedHabitsData")) || [
-            { id: "1", title: "Täglich lesen", type: "goal", emoji: "📚", completedDates: [] },
-            { id: "2", title: "Kein Social Media", type: "restriction", emoji: "🚫", completedDates: [] }
+            { id: "1", title: "Täglich lesen", type: "goal", emoji: "📚", frequencyDays: [1,2,3,4,5,6,0], completedDates: [] },
+            { id: "2", title: "Kein Social Media", type: "restriction", emoji: "🚫", frequencyDays: [1,2,3,4,5,6,0], completedDates: [] }
         ];
 
         let currentFilter = 'all';
         let activeDetailId = null;
+
+        // Styling für Wochentag-Checkboxen im Modal dynamisch schalten
+        document.querySelectorAll('#weekday-selector input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const label = e.target.parentElement;
+                if (e.target.checked) {
+                    label.className = "bg-indigo-600 border-indigo-500 text-white rounded-lg p-1.5 text-xs cursor-pointer select-none font-semibold transition";
+                } else {
+                    label.className = "bg-slate-900 border border-slate-700 text-slate-400 rounded-lg p-1.5 text-xs cursor-pointer select-none transition";
+                }
+            });
+            // Initiale Styles setzen
+            const label = input.parentElement;
+            if (input.checked) {
+                label.className = "bg-indigo-600 border-indigo-500 text-white rounded-lg p-1.5 text-xs cursor-pointer select-none font-semibold transition";
+            }
+        });
 
         function save() {
             localStorage.setItem("SavedHabitsData", JSON.stringify(habits));
@@ -153,6 +182,7 @@
             let emoji = document.getElementById('habit-emoji').value.trim();
             if (!emoji) emoji = type === 'goal' ? '🎯' : '🚫';
             
+            const frequencyDays = Array.from(document.querySelectorAll('#weekday-selector input:checked')).map(el => parseInt(el.value));
             const startDateInput = document.getElementById('habit-start-date').value;
             let completedDates = [];
 
@@ -163,12 +193,16 @@
                 today.setHours(0,0,0,0);
 
                 while (current <= today) {
-                    completedDates.push(new Date(current).toISOString());
+                    // Nur eintragen, wenn der Wochentag im frequencyDays-Set ist
+                    const dayOfWeek = current.getDay();
+                    if (frequencyDays.includes(dayOfWeek)) {
+                        completedDates.push(new Date(current).toISOString());
+                    }
                     current.setDate(current.getDate() + 1);
                 }
             }
 
-            habits.push({ id: Date.now().toString(), title, type, emoji, completedDates });
+            habits.push({ id: Date.now().toString(), title, type, emoji, frequencyDays, completedDates });
             save();
             closeAddModal();
         }
@@ -232,6 +266,12 @@
         function formatDateDE(dateVal) {
             const d = new Date(dateVal);
             return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function isDueToday(frequencyDays) {
+            if (!frequencyDays || frequencyDays.length === 0) return true;
+            const todayDay = new Date().getDay();
+            return frequencyDays.includes(todayDay);
         }
 
         function isCompletedToday(completedDates) {
@@ -313,8 +353,13 @@
             });
 
             filtered.sort((a, b) => {
+                const aDue = isDueToday(a.frequencyDays);
+                const bDue = isDueToday(b.frequencyDays);
                 const aCompleted = isCompletedToday(a.completedDates);
                 const bCompleted = isCompletedToday(b.completedDates);
+
+                // Nicht fällige nach unten, erledigte nach unten
+                if (aDue !== bDue) return aDue ? -1 : 1;
                 if (aCompleted === bCompleted) return 0;
                 return aCompleted ? 1 : -1;
             });
@@ -325,6 +370,7 @@
             }
 
             filtered.forEach(habit => {
+                const dueToday = isDueToday(habit.frequencyDays);
                 const completed = isCompletedToday(habit.completedDates);
                 const active = getActiveStreak(habit.completedDates);
                 const all = getAllStreaks(habit.completedDates);
@@ -332,7 +378,7 @@
                 const bestStreak = all.length > 0 ? Math.max(...all.map(s => s.length)) : 0;
 
                 const card = document.createElement('div');
-                card.className = `bg-slate-800 border ${completed ? 'border-emerald-500/50 bg-slate-800/80 opacity-75' : 'border-slate-700'} rounded-2xl p-4 flex items-center justify-between transition-all duration-300 shadow-lg cursor-pointer hover:border-slate-500`;
+                card.className = `bg-slate-800 border ${completed ? 'border-emerald-500/50 bg-slate-800/80 opacity-75' : dueToday ? 'border-slate-700' : 'border-slate-800 opacity-60'} rounded-2xl p-4 flex items-center justify-between transition-all duration-300 shadow-lg cursor-pointer hover:border-slate-500`;
                 card.onclick = () => openDetailModal(habit.id);
                 
                 card.innerHTML = `
@@ -347,16 +393,18 @@
                                     ${habit.type === 'goal' ? 'Vorsatz' : 'Verbot'}
                                 </span>
                             </div>
-                            <div class="text-xs text-slate-400 mt-1 flex gap-3">
+                            <div class="text-xs text-slate-400 mt-1 flex gap-3 items-center">
                                 <span>🔥 Streak: <strong class="text-white">${currentStreak}</strong></span>
                                 <span>🏆 Rekord: <strong class="text-white">${bestStreak}</strong></span>
+                                ${!dueToday ? '<span class="text-amber-400 text-[10px] bg-amber-500/10 px-2 py-0.5 rounded">Heute frei</span>' : ''}
                             </div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        ${dueToday ? `
                         <button type="button" onclick="toggleToday('${habit.id}', event)" class="w-10 h-10 rounded-xl flex items-center justify-center transition ${completed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/35' : 'bg-slate-900 border border-slate-700 text-slate-500 hover:text-white'}">
                             <i class="fa-solid fa-check text-sm pointer-events-none"></i>
-                        </button>
+                        </button>` : `<span class="text-xs text-slate-500 pr-2">Ruhetag</span>`}
                     </div>
                 `;
                 listEl.appendChild(card);
